@@ -16,6 +16,7 @@ const routeFor=()=>{const path=location.pathname.replace(/^\/|\/$/g,'');return p
 const state={lang:safeRead(localStorage,'invest-flow-lang')==='en'?'en':'ru',route:routeFor(),kind:'all',query:'',projects:catalogueProjects,user:null,catalogError:false};
 state.compareIds = catalogueProjects.filter(p => p.source).slice(0, 2).map(p => p.id);
 state.compareOpen = false;
+state.buildingIds = {};
 state.loginFailed = state.route === 'account' && new URLSearchParams(location.search).has('login_error');
 let loginProviders = [];
 let detailId=null;
@@ -157,13 +158,21 @@ app.addEventListener('toggle', event => {
   if (event.target.matches('.compare-panel')) state.compareOpen = event.target.open;
 }, true);
 app.addEventListener('change', event => {
-  const select = event.target.closest('select[data-compare-index]');
+  const select = event.target.closest('[data-compare-index], [data-building-project]');
   if (!select) return;
-  const index = Number(select.dataset.compareIndex);
-  state.compareIds[index] = select.value;
+  const project = select.dataset.buildingProject;
+  let focusSelector;
+  if (project) {
+    state.buildingIds[project] = select.value;
+    focusSelector = `[data-building-project="${CSS.escape(project)}"]`;
+  } else {
+    const index = Number(select.dataset.compareIndex);
+    state.compareIds[index] = select.value;
+    focusSelector = `[data-compare-index="${index}"]`;
+  }
   const panel = app.querySelector('#comparison');
   panel.innerHTML = view.comparisonBody();
-  panel.querySelector(`[data-compare-index="${index}"]`).focus({preventScroll:true});
+  panel.querySelector(focusSelector).focus({preventScroll:true});
 });
 document.addEventListener('click',async e=>{
   const link=e.target.closest('a[data-nav]');

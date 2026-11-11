@@ -1,3 +1,4 @@
+import {buildings} from './buildings.js';
 import {profiles, demoNotes} from './project-profiles.js';
 import {kinds, stages, images} from './data.js';
 import {db} from './backend.js';
@@ -82,13 +83,41 @@ export function makeView(state) {
         `<option value="${escape(p.id)}" ${p.id === project.id ? 'selected' : ''} ${p.id === pair[1-index].id ? 'disabled' : ''}>${l(p.title)} · ${l(p.city)}</option>`
       ).join('')}</select></label>`;
     };
+    const missing = t('Нет данных', 'No data');
+    const selected = project => {
+      const options = buildings[project.id] || [];
+      return options.find(item => item.id === state.buildingIds[project.id]) || options[0];
+    };
+    const date = value => value ? new Intl.DateTimeFormat(lang, {
+      day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
+    }).format(new Date(value + 'T00:00:00Z')) : missing;
+    const buildingSelector = project => {
+      const options = buildings[project.id] || [];
+      if (!options.length) return missing;
+      const label = t('Дом по ЕИСЖС', 'Building in the housing registry');
+      return `<label>${label}<select data-building-project="${escape(project.id)}" aria-label="${label} · ${l(project.title)}">${options.map(item =>
+        `<option value="${item.id}" ${item === selected(project) ? 'selected' : ''}>ID ${item.id}</option>`
+      ).join('')}</select></label>`;
+    };
     const rows = [
+      [t('Плановый ввод в эксплуатацию', 'Planned commissioning'), p => {
+        const item = selected(p);
+        if (!item?.quarter || !item.year) return missing;
+        return t(`${item.quarter} кв. ${item.year}`, `Q${item.quarter} ${item.year}`);
+      }],
+      [t('Передача ключей по плану', 'Planned key handover'), p => date(selected(p)?.handover)],
+      [t('Данные о доме', 'Building record'), p => {
+        const item = selected(p);
+        if (!item) return missing;
+        return `<a href="${escape(item.source)}" target="_blank" rel="noopener noreferrer">${t('Карточка ЕИСЖС', 'Housing registry record')} · ID ${item.id} ↗</a><br>${t('Сведения от', 'Record dated')} ${date(item.published)}`;
+      }],
+      [t('Цена квартиры', 'Apartment price'), p => `<a href="${escape(p.source)}" target="_blank" rel="noopener noreferrer">${t('Предложения по ЖК у девелопера', 'Development-wide listings from the developer')} ↗</a>`],
       [t('Кому подойдёт','Who it suits'), p => l(profiles[p.id].audience)],
       [t('От чего зависит выгода','What determines value'), p => l(profiles[p.id].value)],
       [t('Что уточнить','What to ask'), p => `<ul>${profiles[p.id].checks.map(q => `<li>${l(q)}</li>`).join('')}</ul>`],
       [t('Первоисточник','Source'), p => `<a href="${escape(p.source)}" target="_blank" rel="noopener noreferrer">${l(p.company)} ↗</a>`]
     ];
-    return `<div class="compare-selects">${pair.map(selector).join('')}</div>${rows.map(([title, cell]) =>
+    return `<div class="compare-selects">${pair.map(selector).join('')}</div><div class="compare-selects">${pair.map(buildingSelector).join('')}</div>${rows.map(([title, cell]) =>
       `<section class="compare-row"><h3>${title}</h3><div>${pair.map(p => `<div><strong>${l(p.title)}</strong>${cell(p)}</div>`).join('')}</div></section>`
     ).join('')}`;
   }
