@@ -14,6 +14,8 @@ const safeRead=(store,key)=>{try{return store.getItem(key);}catch{return null;}}
 const safeWrite=(store,key,value)=>{try{if(value===null)store.removeItem(key);else store.setItem(key,value);}catch{/* Browsing still works without storage. */}};
 const routeFor=()=>{const path=location.pathname.replace(/^\/|\/$/g,'');return path===''?'home':['investors','developers','premium','account'].includes(path)?path:'missing';};
 const state={lang:safeRead(localStorage,'invest-flow-lang')==='en'?'en':'ru',route:routeFor(),kind:'all',query:'',projects:catalogueProjects,user:null,catalogError:false};
+state.compareIds = catalogueProjects.filter(p => p.source).slice(0, 2).map(p => p.id);
+state.compareOpen = false;
 let detailId=null;
 let view=makeView(state);
 let lastFocus=null;
@@ -104,6 +106,44 @@ async function busy(button,feedback,action){
   button.disabled=true;showMessage(feedback,'');
   try{await action();}catch(error){showMessage(feedback,humanError(error),true);}finally{button.disabled=false;}
 }
+async function copyQuestions(button) {
+  const section = button.closest('section');
+  const project = state.projects.find(p => p.id === detailId);
+  const title = project.title[state.lang] + (project.demo ? view.t(' (пример)', ' (demo)') : '');
+  const questions = Array.from(section.querySelectorAll('.project-questions li'), li => '• ' + li.textContent);
+  const list = [title, ...questions].join('\n');
+  const status = section.querySelector('.copy-status');
+  try {
+    await navigator.clipboard.writeText(list);
+    status.textContent = view.t('Вопросы скопированы.', 'Questions copied.');
+  } catch {
+    if (!section.isConnected) return;
+    let field = section.querySelector('textarea');
+    if (!field) {
+      field = document.createElement('textarea');
+      field.readOnly = true;
+      field.rows = 5;
+      field.setAttribute('aria-label', view.t('Вопросы для копирования', 'Questions to copy'));
+      section.append(field);
+    }
+    field.value = list;
+    field.focus();
+    field.select();
+    status.textContent = view.t('Скопируйте выделенный текст.', 'Copy the selected text.');
+  }
+}
+app.addEventListener('toggle', event => {
+  if (event.target.matches('.compare-panel')) state.compareOpen = event.target.open;
+}, true);
+app.addEventListener('change', event => {
+  const select = event.target.closest('select[data-compare-index]');
+  if (!select) return;
+  const index = Number(select.dataset.compareIndex);
+  state.compareIds[index] = select.value;
+  const panel = app.querySelector('#comparison');
+  panel.innerHTML = view.comparisonBody();
+  panel.querySelector(`[data-compare-index="${index}"]`).focus({preventScroll:true});
+});
 document.addEventListener('click',async e=>{
   const link=e.target.closest('a[data-nav]');
   if(link&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey&&e.button===0){e.preventDefault();go(link.href);return;}
@@ -115,6 +155,7 @@ document.addEventListener('click',async e=>{
   }
   if(b.dataset.kind){updateFilter(b.dataset.kind);return;}
   switch(b.dataset.action){
+    case 'copy-questions':await copyQuestions(b);break;
     case 'close':closeDialog();break;
     case 'language':rememberDraft();state.lang=state.lang==='ru'?'en':'ru';safeWrite(localStorage,'invest-flow-lang',state.lang);render();app.querySelector('[data-action="language"]')?.focus({preventScroll:true});break;
     case 'top':window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});break;

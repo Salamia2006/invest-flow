@@ -37,14 +37,15 @@ export function makeView(state) {
   const term = n => `${n} ${t('мес.','mo.')}`;
   function hero() {
     return `<section class="hero scan-hero" aria-labelledby="hero-heading"><div class="hero-backdrop" aria-hidden="true"><div class="sky"></div></div>
-      <div class="hero-inner"><h1 id="hero-heading">${t('Инвестиции в недвижимость','Real estate investment')}<br>${t('на ранней стадии','from the ground up')}</h1>
-      <p>${t('Находите девелоперские проекты на этапе земли и концепции. Изучайте условия и выходите на связь с командой.','Discover development projects at the land and concept stages. Explore the terms and get in touch with the team.')}</p>
+      <div class="hero-inner"><h1 id="hero-heading">${t('Что узнать о проекте до звонка девелоперу?','What should you ask before calling a developer?')}</h1>
+      <p>${t('Выберите жилой комплекс, узнайте, кому он подойдёт, и сохраните вопросы для разговора с девелопером.','Explore a residential project, see who it suits and save questions for your conversation with the developer.')}</p>
       <form class="glass-search" id="hero-search" role="search">
         <label class="glass-input">${icon('search')}<input type="search" name="q" autocomplete="off" aria-label="${t('Название проекта или город','Project name or city')}" placeholder="${t('Название проекта или город','Project name or city')}"></label>
         <div class="glass-search-actions"><fieldset><legend class="sr-only">${t('Тип проекта','Property type')}</legend>
         ${[['all',t('Все','All')],...Object.entries(kinds).map(([id,label])=>[id,label[lang]])].map(([key,label])=>`<label class="search-mode"><input type="radio" name="type" value="${key}" ${key==='all'?'checked':''}><span>${label}</span></label>`).join('')}</fieldset>
         <button class="btn primary" type="submit">${t('Найти проекты','Find projects')} ${icon('arrow')}</button></div></form>
-      ${href('/developers',t('Разместить свой проект','List your project')+' '+icon('arrow'),'hero-link')}</div></section>`;
+      <div class="hero-links"><button class="hero-link" type="button" data-project="donstroy-ostrov">${t('Посмотреть разбор ЖК «Остров»','Explore the Ostrov project guide')} ${icon('arrow')}</button>
+      ${href('/developers',t('Разместить свой проект','List your project')+' '+icon('arrow'),'hero-link')}</div></div></section>`;
   }
   function card(p) {
     if (p.source) {
@@ -72,12 +73,32 @@ export function makeView(state) {
     const warning=state.catalogError?`<p class="message" role="status">${t('Не удалось загрузить новые объявления.','Could not load new listings.')} <button class="link" data-action="retry">${t('Повторить','Retry')}</button></p>`:'';
     return warning+(items.length?`<div class="cards">${items.map(card).join('')}</div>`:`<div class="empty"><h3>${t('Проекты не найдены','No matching projects')}</h3><button data-action="clear" class="btn secondary">${t('Сбросить фильтры','Clear filters')}</button></div>`);
   }
+  function comparisonBody() {
+    const projects = state.projects.filter(p => p.source && profiles[p.id]);
+    const pair = state.compareIds.map(id => projects.find(project => project.id === id));
+    const selector = (project, index) => {
+      const label = index === 0 ? t('Первый ЖК','First project') : t('Второй ЖК','Second project');
+      return `<label>${label}<select data-compare-index="${index}">${projects.map(p =>
+        `<option value="${escape(p.id)}" ${p.id === project.id ? 'selected' : ''} ${p.id === pair[1-index].id ? 'disabled' : ''}>${l(p.title)} · ${l(p.city)}</option>`
+      ).join('')}</select></label>`;
+    };
+    const rows = [
+      [t('Кому подойдёт','Who it suits'), p => l(profiles[p.id].audience)],
+      [t('От чего зависит выгода','What determines value'), p => l(profiles[p.id].value)],
+      [t('Что уточнить','What to ask'), p => `<ul>${profiles[p.id].checks.map(q => `<li>${l(q)}</li>`).join('')}</ul>`],
+      [t('Первоисточник','Source'), p => `<a href="${escape(p.source)}" target="_blank" rel="noopener noreferrer">${l(p.company)} ↗</a>`]
+    ];
+    return `<div class="compare-selects">${pair.map(selector).join('')}</div>${rows.map(([title, cell]) =>
+      `<section class="compare-row"><h3>${title}</h3><div>${pair.map(p => `<div><strong>${l(p.title)}</strong>${cell(p)}</div>`).join('')}</div></section>`
+    ).join('')}`;
+  }
   function catalogue(standalone=false) {
     return `<section class="catalogue wrap" id="catalogue" aria-labelledby="catalogue-heading"><div class="catalog-head"><div>${tag(t('Для инвесторов','For investors'))}
       <${standalone?'h1':'h2'} id="catalogue-heading">${t('Каталог проектов','Project catalogue')}</${standalone?'h1':'h2'}></div>
       ${standalone?'':href('/investors',t('Все проекты','All projects')+' '+icon('arrow'),'outline-link')}</div>
       ${standalone?`<form class="index-search" id="index-search" role="search"><label>${icon('search')}<input type="search" name="q" value="${escape(state.query)}" placeholder="${t('Название проекта или город','Project name or city')}" aria-label="${t('Поиск проектов','Search projects')}"></label><button class="btn primary">${t('Найти','Search')}</button></form>`:''}
       <div class="filters" aria-label="${t('Тип проекта','Project type')}">${[['all',t('Все проекты','All projects')],...Object.entries(kinds).map(([k,v])=>[k,v[lang]])].map(([k,v])=>`<button data-kind="${k}" aria-pressed="${k===state.kind}">${v}</button>`).join('')}<span class="result-count"></span></div>
+      ${standalone ? `<details class="compare-panel" ${state.compareOpen ? 'open' : ''}><summary>${t('Сравнить два жилых комплекса','Compare two residential projects')}</summary><div id="comparison">${comparisonBody()}</div></details>` : ''}
       <div id="results">${results()}</div></section>`;
   }
   function bottom() {
@@ -93,7 +114,9 @@ export function makeView(state) {
     if (!info) return '';
     return `<section class="profile-section"><h3>${t('Кому подойдёт','Who it suits')}</h3><p>${l(info.audience)}</p></section>
       <section class="profile-section"><h3>${t('От чего зависит выгода','What determines value')}</h3><p>${l(info.value)}</p></section>
-      <section class="profile-section"><h3>${t('Вопросы перед решением','Questions before deciding')}</h3><ul>${info.checks.map(item=>`<li>${l(item)}</li>`).join('')}</ul></section>`;
+      <section class="profile-section"><h3>${t('Вопросы перед решением','Questions before deciding')}</h3><ul class="project-questions">${info.checks.map(item=>`<li>${l(item)}</li>`).join('')}</ul>
+      <button type="button" class="btn secondary" data-action="copy-questions">${t('Скопировать вопросы','Copy questions')}</button>
+      <p class="copy-status" role="status"></p></section>`;
   }
   function projectDetail(p) {
     const profile=profiles[p.id];
@@ -149,5 +172,5 @@ export function makeView(state) {
     </div></section>`;
   }
   const pages={home:()=>hero()+catalogue()+bottom(),investors:()=>catalogue(true),developers,premium,account,missing:()=>`<section class="wrap intro-copy"><h1>404</h1>${href('/',t('На главную','Back home'),'btn primary')}</section>`};
-  return {content:pages[state.route],projectDetail,results,filtered,t};
+  return {content:pages[state.route],projectDetail,comparisonBody,results,filtered,t};
 }
