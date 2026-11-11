@@ -1,6 +1,6 @@
 import '@fontsource-variable/inter/wght.css';
 import './style.css';
-import {samples} from './data.js';
+import {catalogueProjects} from './data.js';
 import {db,loadListings,requestLogin,publishListing,requestPremium} from './backend.js';
 import {makeView} from './views.js';
 
@@ -9,7 +9,7 @@ const dialog=document.querySelector('#dialog');
 const safeRead=(store,key)=>{try{return store.getItem(key);}catch{return null;}};
 const safeWrite=(store,key,value)=>{try{if(value===null)store.removeItem(key);else store.setItem(key,value);}catch{/* Browsing still works without storage. */}};
 const routeFor=()=>{const path=location.pathname.replace(/^\/|\/$/g,'');return path===''?'home':['investors','developers','premium','account'].includes(path)?path:'missing';};
-const state={lang:safeRead(localStorage,'invest-flow-lang')==='en'?'en':'ru',route:routeFor(),kind:'all',query:'',projects:samples,user:null,catalogError:false};
+const state={lang:safeRead(localStorage,'invest-flow-lang')==='en'?'en':'ru',route:routeFor(),kind:'all',query:'',projects:catalogueProjects,user:null,catalogError:false};
 let detailId=null;
 let view=makeView(state);
 let lastFocus=null;
@@ -77,7 +77,7 @@ function updateFilter(kind){
   refreshResults();
 }
 async function refreshProjects(){
-  try{state.projects=[...(await loadListings()),...samples];state.catalogError=false;}
+  try{state.projects=[...(await loadListings()),...catalogueProjects];state.catalogError=false;}
   catch{state.catalogError=true;}
   refreshResults();
 }

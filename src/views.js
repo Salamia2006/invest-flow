@@ -58,6 +58,13 @@ export function makeView(state) {
       </div></section>`;
   }
   function card(p) {
+    if (p.source) {
+      return `<article class="card"><button class="card-link" data-project="${escape(p.id)}" aria-label="${t('Открыть проект','Open project')} ${l(p.title)}">
+        <div class="card-copy"><div class="card-meta">${l(kinds[p.kind])}<b>·</b>${icon('pin')} ${l(p.city)}</div>
+        <h3>${l(p.title)}</h3><p class="small">${l(p.description)}</p>
+        <div class="card-bottom"><div><span>${t('Девелопер','Developer')}</span><strong>${l(p.company)}</strong></div><b class="round-arrow">${icon('up')}</b></div></div>
+        </button></article>`;
+    }
     return `<article class="card"><button class="card-link" data-project="${escape(p.id)}" aria-label="${t('Открыть проект','Open project')} ${l(p.title)}">
       <div class="card-visual"><img src="${images[p.kind]}" alt="" loading="lazy"><span class="stage"><i></i>${l(stages[p.stage])}</span></div>
       <div class="card-copy"><div class="card-meta">${l(kinds[p.kind])}<b>·</b>${icon('pin')} ${l(p.city)} ${p.demo?`<small>${t('Пример','Demo')}</small>`:''}</div>
@@ -67,7 +74,7 @@ export function makeView(state) {
   function filtered() {
     const q=state.query.toLocaleLowerCase().trim().replace(/ё/g,'е');
     return state.projects.filter(p=>(state.kind==='all'||p.kind===state.kind)&&
-      (!q||[p.title.ru,p.title.en,p.city.ru,p.city.en,p.company.ru,p.company.en,kinds[p.kind].ru,kinds[p.kind].en,stages[p.stage].ru,stages[p.stage].en].join(' ').toLocaleLowerCase().replace(/ё/g,'е').includes(q)));
+      (!q||[p.title.ru,p.title.en,p.city.ru,p.city.en,p.company.ru,p.company.en,kinds[p.kind].ru,kinds[p.kind].en,stages[p.stage]?.ru,stages[p.stage]?.en].join(' ').toLocaleLowerCase().replace(/ё/g,'е').includes(q)));
   }
   function results() {
     const items=filtered();
@@ -85,13 +92,20 @@ export function makeView(state) {
   function bottom() {
     const faqs=[
       [t('Какие проекты можно разместить?','Which projects can be listed?'),t('Жилые, офисные и гостиничные проекты на стадии участка, концепции или проектирования. В карточке указываются город, команда, срок проекта и минимальная сумма входа.','Residential, office and hotel projects at the land, concept or design stage. Each listing includes a city, team, term and minimum ticket.')],
-      [t('Как связаться с девелопером?','How do I contact a developer?'),t('Откройте карточку опубликованного проекта и нажмите «Написать девелоперу». У демонстрационных карточек нет контактного адреса.','Open a published listing and choose “Email the developer”. Demo projects do not have a contact address.')],
+      [t('Как связаться с девелопером?','How do I contact a developer?'),t('В справочной карточке нажмите «Сайт проекта». В объявлениях от девелоперов доступна кнопка «Написать девелоперу». У демонстрационных карточек нет контактного адреса.','Choose “Official project website” in a directory entry or “Email the developer” in a developer listing. Demo projects do not have a contact address.')],
       [t('Когда появится Premium?','When will Premium launch?'),t('Подписка готовится к запуску. В разделе Premium можно оставить заявку на ранний доступ.','The subscription is in development. You can request early access on the Premium page.')]
     ];
     return `<section class="wrap feature"><div class="feature-image" role="img" aria-label="${t('Фасад современного здания','Contemporary building facade')}"></div><div>${tag(t('Для девелоперов','For developers'))}<h2>${t('Представьте свой проект инвесторам','Present your project to investors')}</h2><p>${t('Расскажите о площадке, стадии и необходимом капитале. Инвесторы смогут изучить условия и связаться с вами напрямую.','Describe your site, stage and capital requirements. Investors can explore the details and contact you directly.')}</p>${href('/developers',t('Разместить проект','List a project')+' '+icon('arrow'),'btn primary')}</div></section>
       <section class="faq wrap"><h2>${t('Частые вопросы','Frequently asked questions')}</h2><div>${faqs.map(([q,a])=>`<details><summary>${q}${icon('down')}</summary><p>${a}</p></details>`).join('')}</div></section>`;
   }
   function projectDetail(p) {
+    if (p.source) {
+      return `<button class="x-button" data-action="close" aria-label="${t('Закрыть','Close')}">${icon('close')}</button>
+        <div class="dialog-copy">${tag(t('Справочная карточка','Project directory'))}<h2 id="dialog-title">${l(p.title)}</h2>
+        <p class="meta-line">${icon('pin')} ${l(p.city)} <b>·</b> ${l(p.company)}</p><p>${l(p.description)}</p>
+        <p class="small">${t('Информация из открытых материалов девелопера.','Based on the developer’s public information.')}</p>
+        <a class="btn primary" href="${escape(p.source)}" target="_blank" rel="noopener noreferrer">${t('Сайт проекта','Official project website')} ${icon('up')}</a></div>`;
+    }
     return `<button class="x-button" data-action="close" aria-label="${t('Закрыть','Close')}">${icon('close')}</button>
       <img class="dialog-image" src="${images[p.kind]}" alt=""><div class="dialog-copy">${tag(p.demo?t('Демонстрационный проект','Demo project'):l(kinds[p.kind]))}
       <h2 id="dialog-title">${l(p.title)}</h2><p class="meta-line">${icon('pin')} ${l(p.city)} <b>·</b> ${l(stages[p.stage])}</p><p>${l(p.description)}</p>
@@ -111,7 +125,7 @@ export function makeView(state) {
       <div class="field-row">${field('min_rub',t('Мин. вход, ₽','Min. ticket, ₽'),'type="number" min="1" max="2147483647" step="1"')}${field('term_months',t('Срок, мес.','Term, months'),'type="number" min="1" max="240" step="1"')}</div>
       <label>${t('О проекте','About the project')}<textarea name="description" minlength="20" maxlength="1800" required rows="3"></textarea></label>
       ${field('contact_email',t('Email для публикации в каталоге','Public contact email'),'type="email" maxlength="254"')}
-      ${db?'':'<p class="small config-note">'+t('Пока открыт каталог примеров. Заполненную карточку можно скачать.','The sample catalogue is open. Download a copy of your completed listing.')+'</p>'}<button class="btn primary" type="submit">${!db?t('Скачать карточку','Download listing'):state.user?t('Опубликовать проект','Publish project'):t('Войти для публикации','Sign in to publish')} ${icon('arrow')}</button><p class="feedback" role="status"></p></form></section>`;
+      ${db?'':'<p class="small config-note">'+t('Каталог открыт для просмотра. Заполненную карточку можно скачать.','The catalogue is open for browsing. Download a copy of your completed listing.')+'</p>'}<button class="btn primary" type="submit">${!db?t('Скачать карточку','Download listing'):state.user?t('Опубликовать проект','Publish project'):t('Войти для публикации','Sign in to publish')} ${icon('arrow')}</button><p class="feedback" role="status"></p></form></section>`;
   }
   function premium() {
     return `<section class="wrap split-page compact-page"><div class="intro-copy">${tag(t('Подписка','Subscription'))}<h1>Invest Flow <em>Premium</em></h1><p>${t('Для инвесторов, которые регулярно сравнивают девелоперские проекты и следят за рынком.','For investors who regularly compare development projects and follow the market.')}</p></div>
