@@ -1,10 +1,14 @@
 import '@fontsource-variable/inter/wght.css';
 import './style.css';
+import {createChrome} from './design/SiteChrome.jsx';
+import './design/home.css';
 import {catalogueProjects} from './data.js';
 import {db,loadListings,requestLogin,publishListing,requestPremium} from './backend.js';
 import {makeView} from './views.js';
 
 const app=document.querySelector('#app');
+app.innerHTML='<a class="skip" href="#main"></a><header class="header liquid-site-header"></header><main id="main" tabindex="-1"></main><div id="site-footer"></div>';
+const renderChrome=createChrome(app.querySelector('header'),app.querySelector('#site-footer'));
 const dialog=document.querySelector('#dialog');
 const safeRead=(store,key)=>{try{return store.getItem(key);}catch{return null;}};
 const safeWrite=(store,key,value)=>{try{if(value===null)store.removeItem(key);else store.setItem(key,value);}catch{/* Browsing still works without storage. */}};
@@ -41,7 +45,9 @@ function render(){
   document.documentElement.lang=state.lang;
   const titles={home:view.t('Маркетплейс недвижимости','Real estate marketplace'),investors:view.t('Инвесторам','For investors'),developers:view.t('Девелоперам','For developers'),account:view.t('Аккаунт','Account'),premium:'Premium',missing:'404'};
   document.title=titles[state.route]+' · Invest Flow';
-  app.innerHTML=view.header()+'<main id="main" tabindex="-1">'+view.content()+'</main>'+view.footer();
+  renderChrome(state);
+  app.querySelector('.skip').textContent=view.t('К содержанию','Skip to content');
+  app.querySelector('#main').innerHTML=view.content();
   document.body.dataset.page=state.route;
   updateCount();
   restoreDraft();
@@ -61,7 +67,11 @@ function go(to, replace=false){
   const url=new URL(to,location.origin);
   if(url.origin!==location.origin)return;
   if(replace)history.replaceState(null,'',url);else history.pushState(null,'',url);
-  state.route=routeFor();readFilters();render();window.scrollTo({top:0,behavior:'instant'});document.querySelector('#main').focus({preventScroll:true});
+  state.route=routeFor();readFilters();render();
+  const target=document.getElementById(url.hash.slice(1));
+  if(target)target.scrollIntoView({behavior:'instant'});
+  else window.scrollTo({top:0,behavior:'instant'});
+  (target?.querySelector('input,summary')||document.querySelector('#main')).focus({preventScroll:true});
 }
 function applySearch(query,kind){
   const url=new URL('/investors',location.origin);
@@ -117,7 +127,7 @@ document.addEventListener('click',async e=>{
 document.addEventListener('submit',async e=>{
   const form=e.target;if(!(form instanceof HTMLFormElement))return;
   e.preventDefault();const data=new FormData(form);
-  if(form.id==='hero-search'||form.id==='index-search'){applySearch(String(data.get('q')||''),form.id==='hero-search'?'all':state.kind);return;}
+  if(form.id==='hero-search'||form.id==='index-search'){applySearch(String(data.get('q')||''),form.id==='hero-search'?String(data.get('type')||'all'):state.kind);return;}
   if(!db&&form.id==='listing-form'){
     const lines=[];
     for(const field of form.querySelectorAll('[name]')){

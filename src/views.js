@@ -29,34 +29,22 @@ export function makeView(state) {
   const lang = state.lang;
   const t = (ru,en) => lang === 'en' ? en : ru;
   const l = value => escape(value[lang]);
-  const routes = [['investors','trend',t('Инвесторам','Investors')],['developers','building',t('Девелоперам','Developers')],['premium','sparkle','Premium']];
   const href = (path, label, cls='') => `<a href="${path}" class="${cls}" data-nav>${label}</a>`;
   const tag = text => `<span class="kicker"><i></i>${text}</span>`;
   const amount = n => n >= 1000000 && n % 100000 === 0
     ? `${new Intl.NumberFormat(lang,{maximumFractionDigits:1}).format(n/1000000)} ${t('млн ₽','M ₽')}`
     : `${new Intl.NumberFormat(lang).format(n)} ₽`;
   const term = n => `${n} ${t('мес.','mo.')}`;
-  function header() {
-    return `<a class="skip" href="#main">${t('К содержанию','Skip to content')}</a>
-    <header class="header"><div class="header-inner">
-      ${href('/','INVEST FLOW','brand')}
-      <nav class="capsule nav" aria-label="${t('Главное меню','Main navigation')}">${routes.map(([path,i,label])=>`<a data-nav href="/${path}" ${state.route===path?'aria-current="page"':''}>${icon(i)}<span>${label}</span></a>`).join('')}</nav>
-      <div class="capsule personal"><a data-nav class="account-link" href="/account" aria-label="${t('Аккаунт','Account')}">${icon('user')}<span>${state.user?t('Аккаунт','Account'):t('Войти','Sign in')}</span></a>
-      <i></i><button data-action="language" aria-label="${t('Switch to English','Переключить на русский')}">${icon('globe')}<span>${lang.toUpperCase()}</span></button></div>
-    </div></header>`;
-  }
-  function footer() {
-    return `<footer class="footer"><div class="wrap footer-inner">${href('/','INVEST FLOW','brand')}<nav>${routes.map(([path,,label])=>href('/'+path,label)).join('')}</nav><button data-action="top">${t('Наверх','Back to top')} ↑</button></div></footer>`;
-  }
   function hero() {
-    return `<section class="hero"><div class="hero-photo" aria-hidden="true"></div><div class="sky" aria-hidden="true"></div>
-      <div class="hero-inner">${tag(t('Маркетплейс недвижимости','Real estate marketplace'))}
-      <h1>${t('Инвестиции в недвижимость','Real estate investment')}<br><em>${t('на ранней стадии','from the ground up')}</em></h1>
+    return `<section class="hero scan-hero" aria-labelledby="hero-heading"><div class="hero-backdrop" aria-hidden="true"><div class="sky"></div></div>
+      <div class="hero-inner"><h1 id="hero-heading">${t('Инвестиции в недвижимость','Real estate investment')}<br>${t('на ранней стадии','from the ground up')}</h1>
       <p>${t('Находите девелоперские проекты на этапе земли и концепции. Изучайте условия и выходите на связь с командой.','Discover development projects at the land and concept stages. Explore the terms and get in touch with the team.')}</p>
-      <form class="hero-search" id="hero-search" role="search"><label class="search-line">${icon('search')}<input type="search" name="q" autocomplete="off" aria-label="${t('Поиск проектов','Search projects')}" placeholder="${t('Название проекта или город','Project name or city')}"></label>
-      <button class="btn primary" type="submit">${t('Найти проекты','Find projects')} ${icon('arrow')}</button></form>
-      ${href('/developers',t('Разместить свой проект','List your project')+' '+icon('up'),'hero-link')}
-      </div></section>`;
+      <form class="glass-search" id="hero-search" role="search">
+        <label class="glass-input">${icon('search')}<input type="search" name="q" autocomplete="off" aria-label="${t('Название проекта или город','Project name or city')}" placeholder="${t('Название проекта или город','Project name or city')}"></label>
+        <div class="glass-search-actions"><fieldset><legend class="sr-only">${t('Тип проекта','Property type')}</legend>
+        ${[['all',t('Все','All')],...Object.entries(kinds).map(([id,label])=>[id,label[lang]])].map(([key,label])=>`<label class="search-mode"><input type="radio" name="type" value="${key}" ${key==='all'?'checked':''}><span>${label}</span></label>`).join('')}</fieldset>
+        <button class="btn primary" type="submit">${t('Найти проекты','Find projects')} ${icon('arrow')}</button></div></form>
+      ${href('/developers',t('Разместить свой проект','List your project')+' '+icon('arrow'),'hero-link')}</div></section>`;
   }
   function card(p) {
     if (p.source) {
@@ -99,7 +87,7 @@ export function makeView(state) {
       [t('Когда появится Premium?','When will Premium launch?'),t('Подписка готовится к запуску. В разделе Premium можно оставить заявку на ранний доступ.','The subscription is in development. You can request early access on the Premium page.')]
     ];
     return `<section class="wrap feature"><div class="feature-image" role="img" aria-label="${t('Фасад современного здания','Contemporary building facade')}"></div><div>${tag(t('Для девелоперов','For developers'))}<h2>${t('Представьте свой проект инвесторам','Present your project to investors')}</h2><p>${t('Расскажите о площадке, стадии и необходимом капитале. Инвесторы смогут изучить условия и связаться с вами напрямую.','Describe your site, stage and capital requirements. Investors can explore the details and contact you directly.')}</p>${href('/developers',t('Разместить проект','List a project')+' '+icon('arrow'),'btn primary')}</div></section>
-      <section class="faq wrap"><h2>${t('Частые вопросы','Frequently asked questions')}</h2><div>${faqs.map(([q,a])=>`<details><summary>${q}${icon('down')}</summary><p>${a}</p></details>`).join('')}</div></section>`;
+      <section id="faq" class="faq wrap"><h2>${t('Частые вопросы','Frequently asked questions')}</h2><div>${faqs.map(([q,a])=>`<details><summary>${q}${icon('down')}</summary><p>${a}</p></details>`).join('')}</div></section>`;
   }
   function analysisSections(info) {
     if (!info) return '';
@@ -161,5 +149,5 @@ export function makeView(state) {
     </div></section>`;
   }
   const pages={home:()=>hero()+catalogue()+bottom(),investors:()=>catalogue(true),developers,premium,account,missing:()=>`<section class="wrap intro-copy"><h1>404</h1>${href('/',t('На главную','Back home'),'btn primary')}</section>`};
-  return {header,footer,content:pages[state.route],projectDetail,results,filtered,t};
+  return {content:pages[state.route],projectDetail,results,filtered,t};
 }
