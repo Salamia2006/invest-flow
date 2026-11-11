@@ -1,3 +1,4 @@
+import {profiles, demoNotes} from './project-profiles.js';
 import {kinds, stages, images} from './data.js';
 import {db} from './backend.js';
 
@@ -59,7 +60,9 @@ export function makeView(state) {
   }
   function card(p) {
     if (p.source) {
+      const photo=profiles[p.id]?.photos[0];
       return `<article class="card"><button class="card-link" data-project="${escape(p.id)}" aria-label="${t('Открыть проект','Open project')} ${l(p.title)}">
+        ${photo?`<div class="card-visual"><img src="${escape(photo.url)}" alt="${l(photo.caption)}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>`:''}
         <div class="card-copy"><div class="card-meta">${l(kinds[p.kind])}<b>·</b>${icon('pin')} ${l(p.city)}</div>
         <h3>${l(p.title)}</h3><p class="small">${l(p.description)}</p>
         <div class="card-bottom"><div><span>${t('Девелопер','Developer')}</span><strong>${l(p.company)}</strong></div><b class="round-arrow">${icon('up')}</b></div></div>
@@ -98,19 +101,37 @@ export function makeView(state) {
     return `<section class="wrap feature"><div class="feature-image" role="img" aria-label="${t('Фасад современного здания','Contemporary building facade')}"></div><div>${tag(t('Для девелоперов','For developers'))}<h2>${t('Представьте свой проект инвесторам','Present your project to investors')}</h2><p>${t('Расскажите о площадке, стадии и необходимом капитале. Инвесторы смогут изучить условия и связаться с вами напрямую.','Describe your site, stage and capital requirements. Investors can explore the details and contact you directly.')}</p>${href('/developers',t('Разместить проект','List a project')+' '+icon('arrow'),'btn primary')}</div></section>
       <section class="faq wrap"><h2>${t('Частые вопросы','Frequently asked questions')}</h2><div>${faqs.map(([q,a])=>`<details><summary>${q}${icon('down')}</summary><p>${a}</p></details>`).join('')}</div></section>`;
   }
+  function analysisSections(info) {
+    if (!info) return '';
+    return `<section class="profile-section"><h3>${t('Кому подойдёт','Who it suits')}</h3><p>${l(info.audience)}</p></section>
+      <section class="profile-section"><h3>${t('От чего зависит выгода','What determines value')}</h3><p>${l(info.value)}</p></section>
+      <section class="profile-section"><h3>${t('Вопросы перед решением','Questions before deciding')}</h3><ul>${info.checks.map(item=>`<li>${l(item)}</li>`).join('')}</ul></section>`;
+  }
   function projectDetail(p) {
-    if (p.source) {
-      return `<button class="x-button" data-action="close" aria-label="${t('Закрыть','Close')}">${icon('close')}</button>
-        <div class="dialog-copy">${tag(t('Справочная карточка','Project directory'))}<h2 id="dialog-title">${l(p.title)}</h2>
-        <p class="meta-line">${icon('pin')} ${l(p.city)} <b>·</b> ${l(p.company)}</p><p>${l(p.description)}</p>
-        <p class="small">${t('Информация из открытых материалов девелопера.','Based on the developer’s public information.')}</p>
-        <a class="btn primary" href="${escape(p.source)}" target="_blank" rel="noopener noreferrer">${t('Сайт проекта','Official project website')} ${icon('up')}</a></div>`;
+    const profile=profiles[p.id];
+    if (profile && p.source) {
+      const sourceLink=(url,label)=>`<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${label} ${icon('up')}</a>`;
+      const picture=(photo)=>`<figure>${sourceLink(photo.url,`<img src="${escape(photo.url)}" alt="${l(photo.caption)}" decoding="async" referrerpolicy="no-referrer">`)}<figcaption>${l(photo.caption)}</figcaption></figure>`;
+      return `<article class="project-profile">
+        <button class="x-button" data-action="close" aria-label="${t('Закрыть','Close')}">${icon('close')}</button>
+        <div class="profile-gallery">${profile.photos.map(picture).join('')}</div>
+        <div class="dialog-copy">${tag(t('Справочная карточка','Project directory'))}
+        <h2 id="dialog-title">${l(p.title)}</h2>
+        <p class="meta-line">${icon('pin')} ${l(p.city)} <b>·</b> ${l(p.company)}</p>
+        <p>${l(p.description)}</p>
+        <dl class="profile-facts">${profile.facts.map(f=>`<div><dt>${l(f.label)}</dt><dd>${l(f.value)}</dd></div>`).join('')}</dl>
+        <section class="profile-section"><h3>${t('Район и архитектура','Setting and architecture')}</h3><p>${l(profile.place)}</p></section>
+        ${analysisSections(profile)}
+        <section class="profile-section profile-links"><h3>${t('Источники и материалы','Sources and further material')}</h3>
+        ${sourceLink(p.source,t('Официальная страница проекта','Official project page'))}
+        ${profile.links.map(item=>sourceLink(item.url,l(item.label))).join('')}</section></div></article>`;
     }
     return `<button class="x-button" data-action="close" aria-label="${t('Закрыть','Close')}">${icon('close')}</button>
       <img class="dialog-image" src="${images[p.kind]}" alt=""><div class="dialog-copy">${tag(p.demo?t('Демонстрационный проект','Demo project'):l(kinds[p.kind]))}
       <h2 id="dialog-title">${l(p.title)}</h2><p class="meta-line">${icon('pin')} ${l(p.city)} <b>·</b> ${l(stages[p.stage])}</p><p>${l(p.description)}</p>
       <dl class="metrics"><div><dt>${t('Мин. вход','Min. ticket')}</dt><dd>${amount(p.amount)}</dd></div><div><dt>${t('Срок проекта','Project term')}</dt><dd>${term(p.term)}</dd></div></dl>
       <p class="small">${p.demo?t('Пример карточки. Название, условия и суммы иллюстративны.','Example listing. The name, terms and amounts are illustrative.'):l(p.company)}</p>
+      ${p.demo?analysisSections(demoNotes[p.id]):''}
       ${p.demo?`<button class="btn secondary" data-action="close">${t('Вернуться в каталог','Back to catalogue')}</button>`:`<a class="btn primary" href="mailto:${escape(encodeURIComponent(p.email))}">${icon('mail')} ${t('Написать девелоперу','Email the developer')}</a>`}</div>`;
   }
   const field=(name,title,attrs='type="text" minlength="2" maxlength="100"')=>`<label>${title}<input name="${name}" required ${attrs}></label>`;
