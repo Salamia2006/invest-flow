@@ -3,7 +3,7 @@ import './style.css';
 import {createChrome} from './design/SiteChrome.jsx';
 import './design/home.css';
 import {catalogueProjects} from './data.js';
-import {db,loadListings,requestLogin,publishListing,requestPremium} from './backend.js';
+import {db,loadListings,requestLogin,getLoginProviders,loginWithProvider,publishListing,requestPremium} from './backend.js';
 import {makeView} from './views.js';
 
 const app=document.querySelector('#app');
@@ -16,6 +16,8 @@ const routeFor=()=>{const path=location.pathname.replace(/^\/|\/$/g,'');return p
 const state={lang:safeRead(localStorage,'invest-flow-lang')==='en'?'en':'ru',route:routeFor(),kind:'all',query:'',projects:catalogueProjects,user:null,catalogError:false};
 state.compareIds = catalogueProjects.filter(p => p.source).slice(0, 2).map(p => p.id);
 state.compareOpen = false;
+state.loginFailed = state.route === 'account' && new URLSearchParams(location.search).has('login_error');
+let loginProviders = [];
 let detailId=null;
 let view=makeView(state);
 let lastFocus=null;
@@ -42,6 +44,24 @@ function refreshResults(){
   app.querySelectorAll('[data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===state.kind)));
   updateCount();
 }
+function renderLoginProviders() {
+  const container = app.querySelector('.login-providers');
+  if (!container) return;
+  container.replaceChildren();
+  for (const provider of loginProviders) {
+    const name = provider === 'google' ? 'Google' : 'GitHub';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn secondary';
+    button.dataset.provider = provider;
+    button.textContent = view.t('Войти через ', 'Continue with ') + name;
+    container.append(button);
+  }
+}
+function rememberLoginReturn() {
+  const next = search().get('next');
+  safeWrite(localStorage, 'invest-flow-return', allowedReturn.has(next) ? next : null);
+}
 function render(){
   view=makeView(state);
   document.documentElement.lang=state.lang;
@@ -53,6 +73,7 @@ function render(){
   document.body.dataset.page=state.route;
   updateCount();
   restoreDraft();
+  renderLoginProviders();
   if(detailId){const p=state.projects.find(p=>p.id===detailId);if(p)dialog.innerHTML=view.projectDetail(p);}
 }
 function rememberDraft(){
@@ -148,6 +169,11 @@ document.addEventListener('click',async e=>{
   const link=e.target.closest('a[data-nav]');
   if(link&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey&&e.button===0){e.preventDefault();go(link.href);return;}
   const b=e.target.closest('button');if(!b)return;
+  if (db && loginProviders.includes(b.dataset.provider)) {
+    rememberLoginReturn();
+    await busy(b, app.querySelector('.auth .feedback'), () => loginWithProvider(b.dataset.provider));
+    return;
+  }
   if(b.dataset.project){
     const p=state.projects.find(p=>p.id===b.dataset.project);if(!p)return;
     detailId=p.id;lastFocus=b;dialog.setAttribute('aria-labelledby','dialog-title');dialog.innerHTML=view.projectDetail(p);
@@ -184,7 +210,7 @@ document.addEventListener('submit',async e=>{
   const button=form.querySelector('button[type="submit"], button.btn');const feedback=form.querySelector('.feedback');
   if(form.id==='login-form'){
     await busy(button,feedback,async()=>{
-      const next=search().get('next');if(allowedReturn.has(next))safeWrite(localStorage,'invest-flow-return',next);
+      rememberLoginReturn();
       await requestLogin(String(data.get('email')).trim());
       showMessage(feedback,view.t('Ссылка отправлена. Откройте письмо в этом браузере.','Link sent. Open the email in this browser.'));
     });
@@ -199,6 +225,21 @@ document.addEventListener('submit',async e=>{
 window.addEventListener('popstate',()=>{closeDialog();state.route=routeFor();readFilters();render();});
 readFilters();render();
 if(db){
+  if (state.route === 'account' && (search().has('code') || search().has('login_error'))) {
+    db.auth.initialize().then(({error}) => {
+      state.loginFailed ||= Boolean(error);
+      if (state.route !== 'account') return;
+      const cleaned = new URL(location.href);
+      for (const key of ['code', 'login_error']) cleaned.searchParams.delete(key);
+      if (cleaned.hash === '#_') cleaned.hash = '';
+      history.replaceState(null, '', cleaned);
+      render();
+    });
+  }
+  getLoginProviders().then(providers => {
+    loginProviders = providers;
+    renderLoginProviders();
+  }).catch(() => {});
   db.auth.onAuthStateChange((event,session)=>{
     const user=session?.user||null;
     const changed=state.user?.id!==user?.id;
